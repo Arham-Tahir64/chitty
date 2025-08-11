@@ -17,6 +17,11 @@ const pool = new Pool({
     port: 5432,
 });
 
+// Initialize server
+const app = express();
+app.use(cors());
+app.use(express.json());
+
 // Sign up
 app.post('/signup', async (req, res) => {
     const { username, password } = req.body;
@@ -48,16 +53,25 @@ app.post('/login', async (req, res) => {
     res.json({ token });
 });
 
-// Initialize server
-const app = express();
-app.use(cors());
-app.use(express.json());
-
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-wss.on('connection', (ws) => {
-    console.log('Client connected');
+wss.on('connection', (ws, req) => {
+    // JWT verification
+    try {
+        const { searchParams } = new URL(req.url, `http://${req.headers.host}`);
+        const token = searchParams.get('token');
+        if (!token) {
+            ws.close(1008, 'Missing auth token');
+            return;
+        }
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        ws.user = { id: decoded.id, username: decoded.username };
+        console.log('Client connected:', ws.user.username);
+    } catch (err) {
+        ws.close(1008, 'Invalid/expired token');
+        return;
+    }
 
     ws.on('message', (message) => {
         console.log('Received:', message.toString());
@@ -68,7 +82,7 @@ wss.on('connection', (ws) => {
         });
     });
 
-    ws.on('close', () => console.log('Client disconnected'));
+    ws.on('close', () => console.log('Client disconnected:', ws.user?.username));
 });
 
 const PORT = process.env.PORT || 3001;
