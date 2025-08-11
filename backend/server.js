@@ -73,11 +73,41 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    ws.on('message', (message) => {
-        console.log('Received:', message.toString());
+    // Chat message handling (for now)
+    ws.on('message', async (message) => {
+        let data;
+        try { 
+            data = JSON.parse(message.toString());
+        } catch (err) { 
+            console.error('Invalid JSON:', err);
+            return;
+        }
+
+        if (data.type != 'chat') return;
+
+        const content = String(data.content || '').slice(0, 4000);
+        const room = "general";
+
+        try {
+            await pool.query(
+                'INSERT INTO messages (content, sender_id, room) VALUES ($1, $2, $3)',
+                [content, ws.user.id, room]
+            );
+        } catch (err) {
+            console.error('Error saving message:', err);
+        }
+
+        const payload = JSON.stringify({
+            type: 'chat',
+            room,
+            user: ws.user.username,
+            content,
+            timestamp: new Date().toISOString(),
+        });
+
         wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
-                client.send(message);
+                client.send(payload);
             }
         });
     });
