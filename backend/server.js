@@ -80,13 +80,13 @@ app.post('/rooms', async (req, res) => {
 
     const roomResult = await pool.query(
       'INSERT INTO rooms (code, name, created_by) VALUES ($1,$2,$3) RETURNING id, code, name',
-      [code, name, user.id]
+      [code, name, decoded.id]
     );
     const room = roomResult.rows[0];
 
     await pool.query(
       'INSERT INTO memberships (user_id, room_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
-      [user.id, room.id]
+      [decoded.id, room.id]
     );
 
     res.json(room);
@@ -135,7 +135,7 @@ app.get('/me/rooms', async (req, res) => {
          JOIN rooms r ON r.id = m.room_id
         WHERE m.user_id = $1
         ORDER BY r.created_at DESC`,
-      [user.id]
+      [decoded.id]
     );
     res.json(rows);
   } catch (e) {
@@ -242,7 +242,7 @@ wss.on('connection', (ws, req) => {
       }
   
       if (data.type === 'chat') {
-        const code = socketRoom.get(ws) || 'general';
+        const code = rooms.get(ws) || 'general';
         const content = String(data.content || '').slice(0, 4000);
   
         // persist using code as the "room" text
@@ -251,7 +251,7 @@ wss.on('connection', (ws, req) => {
           [code, ws.user.id, content]
         );
   
-        broadcastToRoom(code, JSON.stringify({
+        sendToRoom(code, JSON.stringify({
           type: 'chat', room: code, user: ws.user.username, content, time: new Date().toISOString()
         }));
       }
