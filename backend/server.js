@@ -126,56 +126,58 @@ wss.on('connection', (ws, req) => {
 
     // Chat message handling (for now)
     ws.on('message', async (message) => {
+        // Parse message
         const raw = message.toString();
-      
-        // Accept JSON or plain text
         let data;
         try { data = JSON.parse(raw); }
         catch { data = { type: 'chat', content: raw }; }
       
-        if (data.type !== 'chat') {
-          console.log('Ignoring non-chat message:', data.type);
+        // Join room
+        if (data.type === 'join') {
+          const room = String(data.room || 'general').trim();
+          joinRoom(ws, room);
+          sendToRoom(room, JSON.stringify({
+            type: 'system', event: 'join', user: ws.user.username, room, time: new Date().toISOString()
+          }));
           return;
         }
       
-        const room = 'general';
-        const content = String(data.content ?? '').trim();
+        // Chat message
+        if (data.type === 'chat') {
+          const room = rooms.get(ws) || 'general';
+          const content = String(data.content ?? '').slice(0, 4000);
       
-        // Log the chat event
-        console.log(`CHAT <- user=${ws.user?.username} room=${room} content="${content}"`);
-      
-        try {
-          const result = await pool.query(
-            'INSERT INTO messages (room, sender_id, content) VALUES ($1, $2, $3) RETURNING id',
-            [room, ws.user.id, content]
-          );
-          console.log(`Saved message id=${result.rows[0].id}`);
-        } catch (err) {
-          console.error('Error saving message:', err);
-        }
-      
-        // Broadcast and log fanout
-        const payload = JSON.stringify({
-          type: 'chat',
-          room,
-          user: ws.user.username,
-          content,
-          time: new Date().toISOString()
-        });
-      
-        let sent = 0;
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(payload);
-            sent++;
+          // save message to database for history
+          try {
+            await pool.query(
+              'INSERT INTO messages (room, sender_id, content) VALUES ($1, $2, $3)',
+              [room, ws.user.id, content]
+            );
+          } catch (e) {
+            console.error('Error saving message:', e);
           }
-        });
-        console.log(`Broadcasted to ${sent} client(s)`);
-      });
       
-
-    ws.on('close', () => console.log('Client disconnected:', ws.user?.username));
-});
+          // broadcast message only to this room 
+          const payload = JSON.stringify({
+            type: 'chat', room, user: ws.user.username, content,
+            time: new Date().toISOString()
+          });
+          sendToRoom(room, payload);
+          return;
+        }
+      });      
+      
+    // Client disconnected
+    const room = rooms.get(ws);
+    if (room && roomUsers.get(room)) {
+      roomUsers.get(room).delete(ws);
+      sendToRoom(room, JSON.stringify({
+        type: 'system', event: 'leave', user: ws.user?.username, room,
+        time: new Date().toISOString()
+      }));
+    }
+    rooms.delete(ws);
+    });
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
