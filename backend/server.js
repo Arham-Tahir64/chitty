@@ -5,6 +5,10 @@ const http = require('http');
 const WebSocket = require('ws');
 const cors = require('cors');
 
+// Room codes
+const { customAlphabet } = require('nanoid');
+const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
+
 // Sign up and login
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -53,6 +57,68 @@ app.post('/login', async (req, res) => {
 
     const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET);
     res.json({ token });
+});
+
+// Create room
+app.post('/rooms', async (req, res) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Missing auth token' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // generate room code
+    let code;
+    while (true) {
+      code = nanoid();
+      const result = await pool.query('SELECT * FROM rooms WHERE code = $1', [code]);
+      if (result.rows.length === 0) break;
+    }
+
+    // create room in database
+    const name = (req.body?.name || '').trim() || `Room ${code}`;
+
+    const roomResult = await pool.query(
+      'INSERT INTO rooms (code, name, created_by) VALUES ($1,$2,$3) RETURNING id, code, name',
+      [code, name, user.id]
+    );
+    const room = roomResult.rows[0];
+
+    await pool.query(
+      'INSERT INTO memberships (user_id, room_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+      [user.id, room.id]
+    );
+
+    res.json(room);
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Join room
+app.post('/rooms/join', async (req, res) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Missing auth token' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const code = String(req.body?.code || '').trim().toUpperCase();
+    if (!code) return res.status(400).json({ error: 'Missing code' });
+
+    const roomResult = await pool.query(
+      'SELECT * FROM rooms WHERE code = $1',
+      [code]
+    );
+    const room = roomResult.rows[0];
+
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+
+    await pool.query('INSERT INTO memberships (user_id, room_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [decoded.id, room.id]);
+    res.json({ message: 'Joined room' });
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // Chat history (for now)
