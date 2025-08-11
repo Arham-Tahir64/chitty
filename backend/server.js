@@ -75,6 +75,35 @@ app.get('/rooms/:room/messages', async (req, res) => {
     }
   });  
 
+// Room handling
+const rooms = new Map();
+const roomUsers = new Map();
+
+// Room handling functions
+// Join room
+function joinRoom(ws, room) {
+    // Remove from previous room first
+    const prev = rooms.get(ws);
+    if (prev && roomUsers.get(prev)) roomUsers.get(prev).delete(ws);
+
+    // Add to new room
+    rooms.set(ws, room);
+    if (!roomUsers.get(room)) roomUsers.set(room, new Set());
+    roomUsers.get(room).add(ws);
+}
+
+// Send message to room
+function sendToRoom(room, payload) {
+    // Get users in room
+    const users = roomUsers.get(room);
+    if (!users) return;
+
+    // Send to each user
+    users.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(payload);
+    });
+}
+
 wss.on('connection', (ws, req) => {
     // JWT verification
     try {
@@ -91,6 +120,9 @@ wss.on('connection', (ws, req) => {
         ws.close(1008, 'Invalid/expired token');
         return;
     }
+
+    // Join room, default to general
+    joinRoom(ws, 'general');
 
     // Chat message handling (for now)
     ws.on('message', async (message) => {
