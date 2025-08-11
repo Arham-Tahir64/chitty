@@ -121,6 +121,29 @@ app.post('/rooms/join', async (req, res) => {
   }
 });
 
+// List rooms that the user is a member of
+app.get('/me/rooms', async (req, res) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Missing auth token' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const { rows } = await pool.query(
+      `SELECT r.id, r.code, r.name, r.created_at
+         FROM memberships m
+         JOIN rooms r ON r.id = m.room_id
+        WHERE m.user_id = $1
+        ORDER BY r.created_at DESC`,
+      [user.id]
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Chat history (for now)
 app.get('/rooms/:room/messages', async (req, res) => {
     const { room } = req.params;
@@ -191,59 +214,49 @@ wss.on('connection', (ws, req) => {
     joinRoom(ws, 'general');
 
     // Chat message handling (for now)
-    ws.on('message', async (message) => {
-        // Parse message
-        const raw = message.toString();
-        let data;
-        try { data = JSON.parse(raw); }
-        catch { data = { type: 'chat', content: raw }; }
-      
-        // Join room
-        if (data.type === 'join') {
-          const room = String(data.room || 'general').trim();
-          joinRoom(ws, room);
-          sendToRoom(room, JSON.stringify({
-            type: 'system', event: 'join', user: ws.user.username, room, time: new Date().toISOString()
-          }));
-          return;
+    ws.on('message', async (raw) => {
+      let data; try { data = JSON.parse(raw.toString()); } catch { data = {}; }
+  
+      if (data.type === 'join') {
+        // support { room: "general" } or { code: "Q7K9Z2NA" }
+        const code = String((data.code ?? data.room ?? '')).trim().toUpperCase();
+        if (!code) return ws.send(JSON.stringify({ type: 'error', code: 'BAD_JOIN', message: 'Missing room code' }));
+  
+        // ensure membership (either require prior join or auto-join if code exists)
+        const exists = await pool.query('SELECT id FROM rooms WHERE code=$1', [code]);
+        if (exists.rowCount === 0) {
+          return ws.send(JSON.stringify({ type: 'error', code: 'NO_SUCH_ROOM' }));
         }
-      
-        // Chat message
-        if (data.type === 'chat') {
-          const room = rooms.get(ws) || 'general';
-          const content = String(data.content ?? '').slice(0, 4000);
-      
-          // save message to database for history
-          try {
-            await pool.query(
-              'INSERT INTO messages (room, sender_id, content) VALUES ($1, $2, $3)',
-              [room, ws.user.id, content]
-            );
-          } catch (e) {
-            console.error('Error saving message:', e);
-          }
-      
-          // broadcast message only to this room 
-          const payload = JSON.stringify({
-            type: 'chat', room, user: ws.user.username, content,
-            time: new Date().toISOString()
-          });
-          sendToRoom(room, payload);
-          return;
-        }
-      });      
-      
-    // Client disconnected
-    const room = rooms.get(ws);
-    if (room && roomUsers.get(room)) {
-      roomUsers.get(room).delete(ws);
-      sendToRoom(room, JSON.stringify({
-        type: 'system', event: 'leave', user: ws.user?.username, room,
-        time: new Date().toISOString()
-      }));
-    }
-    rooms.delete(ws);
+  
+        // auto-join if not a member
+        const roomId = exists.rows[0].id;
+        await pool.query(
+          'INSERT INTO memberships (user_id, room_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+          [ws.user.id, roomId]
+        );
+  
+        joinRoom(ws, code); // store/join by code; messages.room stays as text code
+  
+        ws.send(JSON.stringify({ type: 'joined', code }));
+        return;
+      }
+  
+      if (data.type === 'chat') {
+        const code = socketRoom.get(ws) || 'general';
+        const content = String(data.content || '').slice(0, 4000);
+  
+        // persist using code as the "room" text
+        await pool.query(
+          'INSERT INTO messages (room, sender_id, content) VALUES ($1,$2,$3)',
+          [code, ws.user.id, content]
+        );
+  
+        broadcastToRoom(code, JSON.stringify({
+          type: 'chat', room: code, user: ws.user.username, content, time: new Date().toISOString()
+        }));
+      }
     });
+  });
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
