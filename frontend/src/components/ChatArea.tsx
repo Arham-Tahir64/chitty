@@ -80,6 +80,7 @@ export default function ChatArea({
         <div className="chat-input-row">
           <input
             className="chat-input"
+            style={{ color: "black" }}
             placeholder="Type a message..."
             value={text}
             onChange={e => setText(e.target.value)}
