@@ -218,6 +218,26 @@ app.get('/rooms/:room/messages', async (req, res) => {
     }
   });  
 
+// Get room members
+app.get('/rooms/:room/members', async (req, res) => {
+  try {
+    const { room } = req.params;
+    const result = await pool.query(
+      `SELECT u.id, u.username as name
+       FROM memberships m
+       JOIN users u ON u.id = m.user_id
+       JOIN rooms r ON r.id = m.room_id
+       WHERE r.code = $1
+       ORDER BY u.username`,
+      [room]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Failed to fetch room members:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Room handling
 const rooms = new Map();
 const roomUsers = new Map();

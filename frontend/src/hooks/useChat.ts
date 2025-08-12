@@ -1,24 +1,18 @@
-import { useRef, useState, useEffect } from 'react';
-import type { Room } from '../types';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import type { Room, Member, Message } from '../types';
 
 const API = "http://localhost:3001";
 
 export function useChat(token: string) {
   const [connected, setConnected] = useState(false);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
   // Load user's rooms when logged in
-  useEffect(() => {
-    if (token) {
-      loadUserRooms();
-    }
-  }, [token]);
-
-  // Load user's rooms
-  const loadUserRooms = async () => {
+  const loadUserRooms = useCallback(async () => {
     try {
       const res = await fetch(`${API}/me/rooms`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -30,7 +24,39 @@ export function useChat(token: string) {
     } catch (error) {
       console.error("Failed to load rooms:", error);
     }
-  };
+  }, [token]);
+
+  // Refresh members periodically when in a room
+  const fetchMembers = useCallback(async () => {
+    if (!currentRoom) return;
+    try {
+      const res = await fetch(`${API}/rooms/${currentRoom.code}/members`);
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch members:", error);
+    }
+  }, [currentRoom]);
+
+  // Load user's rooms
+  useEffect(() => {
+    if (token) {
+      loadUserRooms();
+    }
+  }, [token, loadUserRooms]);
+
+  // Refresh members periodically when in a room
+  useEffect(() => {
+    if (!currentRoom) return;
+    
+    const interval = setInterval(() => {
+      fetchMembers();
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [currentRoom, fetchMembers]);
 
   // Create new room
   const createRoom = async (name: string) => {
@@ -119,16 +145,21 @@ export function useChat(token: string) {
       }
     };
 
-    ws.onmessage = (e: MessageEvent) => {
+    ws.onmessage = async (e: MessageEvent) => {
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === "joined") {
           // Room joined successfully
           console.log("Joined room:", msg.code);
+          await fetchMembers(); // Refresh members list
         } else if (msg.type === "error") {
           console.error("WebSocket error:", msg.message || msg.code);
         } else {
           setMessages((m) => [...m, msg]);
+          // Refresh members when new messages arrive (new users might have joined)
+          if (msg.type === "chat") {
+            fetchMembers();
+          }
         }
       } catch {
         // ignore
@@ -156,7 +187,7 @@ export function useChat(token: string) {
       if (res.ok) {
         const data = await res.json();
         // normalize to same format we append in onmessage
-        const normalized = data.map((r: any) => ({
+        const normalized = data.map((r: { room: string; sender: string; content: string; created_at: string }) => ({
           type: "chat",
           room: r.room,
           user: r.sender,
@@ -181,6 +212,7 @@ export function useChat(token: string) {
     // Join the room and load history
     joinRoom(room.code);
     await fetchHistory();
+    await fetchMembers();
   };
 
   const clearData = () => {
@@ -196,6 +228,7 @@ export function useChat(token: string) {
     messages,
     rooms,
     currentRoom,
+    members,
     connect,
     disconnect,
     sendChat,

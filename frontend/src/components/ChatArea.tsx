@@ -1,15 +1,15 @@
-import type { Room } from '../types';
+import type { Room, Member, Message } from '../types';
 import './chat.css';
 
 interface ChatAreaProps {
   currentRoom: Room | null;
-  messages: any[];
+  messages: Message[];
   text: string;
   connected: boolean;
   setText: (text: string) => void;
   onSendChat: () => void;
   onFetchHistory: () => void;
-  members?: { id: string; name?: string }[];
+  members?: Member[];
 }
 
 export default function ChatArea({
@@ -39,6 +39,10 @@ export default function ChatArea({
     );
   }
 
+  const formatTime = (ts?: string) => ts
+    ? new Date(ts).toLocaleString([], { dateStyle: "short", timeStyle: "short" })
+    : '';
+
   return (
     <div className="chat-shell">
       {/* Left: chat column */}
@@ -67,9 +71,7 @@ export default function ChatArea({
                       <span className="message-user">{m.user ?? "?"}</span>
                       <span className="message-dot">•</span>
                       <span className="message-time">
-                        {(m.time || m.createdAt || m.created_at)
-                          ? new Date(m.time || m.createdAt || m.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })
-                          : ''}
+                        {formatTime(m.time ?? m.createdAt ?? m.created_at)}
                       </span>
                     </div>
                     <div className="message-content">{m.content}</div>

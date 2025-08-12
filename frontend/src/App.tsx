@@ -23,6 +23,7 @@ export default function App() {
     messages,
     rooms,
     currentRoom,
+    members,
     sendChat,
     fetchHistory,
     createRoom,
@@ -40,7 +41,7 @@ export default function App() {
     try {
       await createRoom(newRoomName);
       setNewRoomName("");
-    } catch (error) {
+    } catch {
       alert("Failed to create room");
     }
   };
@@ -150,6 +151,7 @@ export default function App() {
           setText={setText}
           onSendChat={handleSendChat}
           onFetchHistory={fetchHistory}
+          members={members}
         />
       </div>
     </div>
