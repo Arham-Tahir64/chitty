@@ -1,3 +1,5 @@
+import './auth.css';
+
 interface AuthScreenProps {
   username: string;
   password: string;
@@ -8,67 +10,54 @@ interface AuthScreenProps {
 }
 
 export default function AuthScreen({
-  username,
-  password,
-  setUsername,
-  setPassword,
-  onLogin,
-  onSignup
+  username, password, setUsername, setPassword, onLogin, onSignup
 }: AuthScreenProps) {
   return (
-    <div style={{ 
-      maxWidth: 400, 
-      margin: "100px auto", 
-      fontFamily: "Inter, system-ui",
-      padding: "20px"
-    }}>
-      <h1 style={{ textAlign: "center", marginBottom: "30px" }}>Chitty</h1>
-      
-      <section style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        <input 
-          placeholder="username" 
-          value={username} 
-          onChange={e => setUsername(e.target.value)}
-          style={{ padding: "12px", borderRadius: "6px", border: "1px solid #ddd" }}
-        />
-        <input 
-          placeholder="password" 
-          type="password" 
-          value={password} 
-          onChange={e => setPassword(e.target.value)}
-          style={{ padding: "12px", borderRadius: "6px", border: "1px solid #ddd" }}
-        />
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button 
-            onClick={onSignup}
-            style={{ 
-              flex: 1, 
-              padding: "12px", 
-              borderRadius: "6px", 
-              border: "none", 
-              background: "#f0f0f0",
-              color: "black",
-              cursor: "pointer"
-            }}
-          >
-            Sign up
-          </button>
-          <button 
-            onClick={onLogin}
-            style={{ 
-              flex: 1, 
-              padding: "12px", 
-              borderRadius: "6px", 
-              border: "none", 
-              background: "#007bff",
-              color: "white",
-              cursor: "pointer"
-            }}
-          >
-            Login
-          </button>
+    <div className="auth-root">
+      <div className="window">
+        <div className="win-bar">
+          <span className="dot red" />
+          <span className="dot yellow" />
+          <span className="dot green" />
         </div>
-      </section>
+
+        <form className="glass" onSubmit={(e) => { e.preventDefault(); onLogin(); }}>
+          <h1 className="title">Login</h1>
+
+          <div className="input-box">
+            <input
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+            />
+            <i className="bx bxs-user" aria-hidden />
+          </div>
+
+          <div className="input-box">
+            <input
+              placeholder="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <i className="bx bxs-lock-alt" aria-hidden />
+          </div>
+
+          <div className="row">
+            <label><input type="checkbox" /> Remember me</label>
+            <a href="#" onClick={(e) => e.preventDefault()}>Forgot Password?</a>
+          </div>
+
+          <button className="btn" type="submit">Login</button>
+
+          <div className="helper">
+            Don’t have an account?{" "}
+            <a href="#" onClick={(e) => { e.preventDefault(); onSignup(); }}>Register</a>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
