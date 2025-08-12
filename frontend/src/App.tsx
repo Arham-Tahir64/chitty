@@ -292,7 +292,7 @@ export default function App() {
                       cursor: "pointer"
                     }}
                   >
-                    {room.code} - {room.name}
+                    <span style={{ color: "black", fontWeight: "bold" }}>{room.code} - {room.name}</span>
                   </button>
                 ))}
                 {rooms.length === 0 && <span style={{ opacity: 0.7 }}>No rooms yet. Create one or join one!</span>}
