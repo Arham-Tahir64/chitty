@@ -69,7 +69,6 @@ export default function RoomSidebar({
                 (e.currentTarget as HTMLButtonElement).style.setProperty('--ry', `${e.clientY - rect.top}px`);
               }}
               style={{
-                // @ts-ignore custom css var for stagger
                 '--i': idx,
               } as React.CSSProperties}
               onClick={() => onSelectRoom(room)}

@@ -28,6 +28,37 @@ app.use(express.json());
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// Redis setup (pub/sub + simple cache)
+const { createClient } = require('redis');
+const INSTANCE_ID = Math.random().toString(36).slice(2);
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisPub = createClient({ url: redisUrl });
+const redisSub = createClient({ url: redisUrl });
+
+redisPub.on('error', err => console.error('Redis error (pub):', err));
+redisSub.on('error', err => console.error('Redis error (sub):', err));
+
+(async () => {
+  try {
+    await redisPub.connect();
+    await redisSub.connect();
+    console.log('Connected to Redis');
+
+    // Subscribe to room channels and rebroadcast to local clients
+    await redisSub.pSubscribe('room:*', (message, channel) => {
+      try {
+        const payload = JSON.parse(message);
+        if (payload.instanceId === INSTANCE_ID) return; // avoid echo
+        const { room, user, content, time } = payload;
+        const msg = JSON.stringify({ type: 'chat', room, user, content, time });
+        sendToRoom(room, msg);
+      } catch {}
+    });
+  } catch (err) {
+    console.error('Failed to connect to Redis:', err?.message || err);
+  }
+})();
+
 // Sign up
 app.post('/signup', async (req, res) => {
     const { username, password } = req.body;
@@ -161,6 +192,17 @@ app.get('/rooms/:room/messages', async (req, res) => {
     const { room } = req.params;
     const limit = Math.min(Number(req.query.limit || 50), 200);
     try {
+      // attempt to serve from Redis cache
+      try {
+        if (redisPub?.isOpen) {
+          const cached = await redisPub.lRange(`history:${room}`, -limit, -1);
+          if (cached && cached.length > 0) {
+            const rows = cached.map((s) => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean);
+            return res.json(rows);
+          }
+        }
+      } catch {}
+
       const result = await pool.query(
         `SELECT m.id, m.room, m.content, m.created_at, u.username AS sender
          FROM messages m
@@ -256,16 +298,30 @@ wss.on('connection', (ws, req) => {
       if (data.type === 'chat') {
         const code = rooms.get(ws) || 'general';
         const content = String(data.content || '').slice(0, 4000);
-  
+
+        const nowIso = new Date().toISOString();
+        const outgoing = { type: 'chat', room: code, user: ws.user.username, content, time: nowIso };
+
         // persist using code as the "room" text
         await pool.query(
           'INSERT INTO messages (room, sender_id, content) VALUES ($1,$2,$3)',
           [code, ws.user.id, content]
         );
-  
-        sendToRoom(code, JSON.stringify({
-          type: 'chat', room: code, user: ws.user.username, content, time: new Date().toISOString()
-        }));
+
+        // local broadcast
+        sendToRoom(code, JSON.stringify(outgoing));
+
+        // publish to other instances + cache recent history
+        (async () => {
+          try {
+            if (redisPub.isOpen) {
+              await redisPub.publish(`room:${code}`, JSON.stringify({ ...outgoing, instanceId: INSTANCE_ID }));
+              const cacheRow = { room: code, content, created_at: nowIso, sender: ws.user.username };
+              await redisPub.rPush(`history:${code}`, JSON.stringify(cacheRow));
+              await redisPub.lTrim(`history:${code}`, -500, -1);
+            }
+          } catch {}
+        })();
       }
     });
   });
