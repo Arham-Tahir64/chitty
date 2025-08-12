@@ -114,10 +114,10 @@ export default function App() {
 
   return (
     <div style={{ 
-      height: "100vh", 
-      display: "flex", 
-      fontFamily: "Inter, system-ui",
-      background: "#f5f5f5"
+      display: 'flex',
+      height: '100vh',
+      overflow: 'hidden',     // prevent page scrollbars
+      background: '#f0f2f5'
     }}>
       {/* Left Sidebar - Room Management */}
       <RoomSidebar
@@ -141,8 +141,8 @@ export default function App() {
       />
 
       {/* Right Side - Chat Area */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <ChatArea
+      <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      <ChatArea
           currentRoom={currentRoom}
           messages={messages}
           text={text}
