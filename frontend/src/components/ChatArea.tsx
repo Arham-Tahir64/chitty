@@ -50,19 +50,6 @@ export default function ChatArea({
             <h2 style={{ margin: 0, fontSize: "20px" }}>{currentRoom.name}</h2>
             <span style={{ fontSize: "14px", color: "#666" }}>Room Code: {currentRoom.code}</span>
           </div>
-          <button 
-            onClick={onFetchHistory}
-            style={{ 
-              padding: "8px 16px", 
-              borderRadius: "4px", 
-              border: "none", 
-              background: "#007bff",
-              color: "white",
-              cursor: "pointer"
-            }}
-          >
-            Load History
-          </button>
         </div>
       </div>
 

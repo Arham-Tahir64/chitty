@@ -170,11 +170,17 @@ export function useChat(token: string) {
     }
   };
 
-  const selectRoom = (room: Room) => {
+  const selectRoom = async (room: Room) => {
     setCurrentRoom(room);
-    if (connected) {
-      joinRoom(room.code);
+    
+    // Auto-connect if not connected
+    if (!connected) {
+      await connect();
     }
+    
+    // Join the room and load history
+    joinRoom(room.code);
+    await fetchHistory();
   };
 
   const clearData = () => {

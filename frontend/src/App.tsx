@@ -132,9 +132,13 @@ export default function App() {
         setRoomCode={setRoomCode}
         onCreateRoom={handleCreateRoom}
         onJoinRoom={handleJoinRoom}
-        onSelectRoom={selectRoom}
-        onConnect={connect}
-        onDisconnect={disconnect}
+        onSelectRoom={async (room) => {
+          try {
+            await selectRoom(room);
+          } catch (error) {
+            console.error("Failed to select room:", error);
+          }
+        }}
         onLogout={handleLogout}
       />
 

@@ -11,8 +11,6 @@ interface RoomSidebarProps {
   onCreateRoom: () => void;
   onJoinRoom: () => void;
   onSelectRoom: (room: Room) => void;
-  onConnect: () => void;
-  onDisconnect: () => void;
   onLogout: () => void;
 }
 
@@ -27,8 +25,6 @@ export default function RoomSidebar({
   onCreateRoom,
   onJoinRoom,
   onSelectRoom,
-  onConnect,
-  onDisconnect,
   onLogout
 }: RoomSidebarProps) {
   return (
@@ -151,40 +147,6 @@ export default function RoomSidebar({
           <span style={{ fontSize: "12px", color: "#666" }}>
             Status: {connected ? "🟢 connected" : "🔴 disconnected"}
           </span>
-        </div>
-        
-        <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-          {!connected ? (
-            <button 
-              onClick={onConnect}
-              style={{ 
-                flex: 1, 
-                padding: "8px", 
-                borderRadius: "4px", 
-                border: "none", 
-                background: "#28a745",
-                color: "white",
-                cursor: "pointer"
-              }}
-            >
-              Connect
-            </button>
-          ) : (
-            <button 
-              onClick={onDisconnect}
-              style={{ 
-                flex: 1, 
-                padding: "8px", 
-                borderRadius: "4px", 
-                border: "none", 
-                background: "#dc3545",
-                color: "white",
-                cursor: "pointer"
-              }}
-            >
-              Disconnect
-            </button>
-          )}
         </div>
 
         <button 
