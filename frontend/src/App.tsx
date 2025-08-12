@@ -23,8 +23,6 @@ export default function App() {
     messages,
     rooms,
     currentRoom,
-    connect,
-    disconnect,
     sendChat,
     fetchHistory,
     createRoom,

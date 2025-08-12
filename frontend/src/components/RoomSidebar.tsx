@@ -1,4 +1,5 @@
 import type { Room } from '../types';
+import './rooms.css';
 
 interface RoomSidebarProps {
   rooms: Room[];
@@ -107,35 +108,41 @@ export default function RoomSidebar({
         </button>
       </div>
 
-      {/* User's Rooms */}
-      <div style={{ flex: 1, padding: "16px", overflowY: "auto" }}>
+        {/* User's Rooms */}
+        <div style={{ flex: 1, padding: "16px", overflowY: "auto" }}>
         <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", color: "#666" }}>Your Rooms:</h4>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-          {rooms.map(room => (
+            {rooms.map((room) => (
             <button
-              key={room.id}
-              onClick={() => onSelectRoom(room)}
-              style={{
+                key={room.id}
+                onClick={() => onSelectRoom(room)}
+                onDoubleClick={() => {
+                navigator.clipboard.writeText(room.code);
+                alert(`Room code "${room.code}" copied!`);
+                }}
+                style={{
                 padding: "8px 12px",
                 border: currentRoom?.id === room.id ? "2px solid #007bff" : "1px solid #ddd",
                 borderRadius: "4px",
                 background: currentRoom?.id === room.id ? "#e3f2fd" : "white",
                 cursor: "pointer",
                 textAlign: "left",
-                fontSize: "13px"
-              }}
+                fontSize: "13px",
+                userSelect: "none"
+                }}
             >
-              <div style={{ fontWeight: "bold" }}>{room.code}</div>
-              <div style={{ fontSize: "11px", color: "#666" }}>{room.name}</div>
+                <div style={{ fontWeight: "bold", color: "black", fontSize: "17px" }}>{room.name}</div>
+                <div style={{ fontSize: "10px", color: "#666" }}>{room.code}</div>
             </button>
-          ))}
-          {rooms.length === 0 && (
+            ))}
+            {rooms.length === 0 && (
             <span style={{ opacity: 0.7, fontSize: "12px", textAlign: "center" }}>
-              No rooms yet. Create one or join one!
+                No rooms yet. Create one or join one!
             </span>
-          )}
+            )}
         </div>
-      </div>
+        </div>
+
 
       {/* Connection Status & Logout */}
       <div style={{ 

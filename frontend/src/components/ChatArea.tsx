@@ -17,7 +17,6 @@ export default function ChatArea({
   connected,
   setText,
   onSendChat,
-  onFetchHistory
 }: ChatAreaProps) {
   if (!currentRoom) {
     return (
