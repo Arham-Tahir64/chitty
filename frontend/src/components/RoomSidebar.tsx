@@ -29,147 +29,77 @@ export default function RoomSidebar({
   onLogout
 }: RoomSidebarProps) {
   return (
-    <div style={{ 
-      width: "280px", 
-      background: "white", 
-      borderRight: "1px solid #ddd",
-      display: "flex",
-      flexDirection: "column"
-    }}>
-      {/* Header */}
-      <div style={{ 
-        padding: "20px", 
-        borderBottom: "1px solid #ddd",
-        color: "black",
-        background: "#f8f9fa"
-      }}>
-        <h2 style={{ margin: 0, fontSize: "18px" }}>Rooms</h2>
+    <div className="sidebar">
+      <div className="sidebar-header">
+        <h2 className="sidebar-title">Rooms</h2>
       </div>
 
-      {/* Room Creation */}
-      <div style={{ padding: "16px", borderBottom: "1px solid #ddd" }}>
-        <input 
-          placeholder="Room name (optional)" 
-          value={newRoomName} 
+      <div className="sidebar-section">
+        <input
+          className="text-input"
+          placeholder="Room name (optional)"
+          value={newRoomName}
           onChange={e => setNewRoomName(e.target.value)}
-          style={{ 
-            width: "100%", 
-            padding: "8px", 
-            borderRadius: "4px", 
-            border: "1px solid #ddd",
-            marginBottom: "8px"
-          }}
         />
-        <button 
-          onClick={onCreateRoom}
-          style={{ 
-            width: "100%", 
-            padding: "8px", 
-            borderRadius: "4px", 
-            border: "none", 
-            background: "#28a745",
-            color: "white",
-            cursor: "pointer"
-          }}
-        >
-          Create Room
-        </button>
+        <button className="btn-primary" onClick={onCreateRoom}>Create Room</button>
       </div>
 
-      {/* Join Room */}
-      <div style={{ padding: "16px", borderBottom: "1px solid #ddd" }}>
-        <input 
-          placeholder="Enter room code" 
-          value={roomCode} 
+      <div className="sidebar-section">
+        <input
+          className="text-input"
+          placeholder="Enter room code"
+          value={roomCode}
           onChange={e => setRoomCode(e.target.value.toUpperCase())}
-          style={{ 
-            width: "100%", 
-            padding: "8px", 
-            borderRadius: "4px", 
-            border: "1px solid #ddd",
-            marginBottom: "8px",
-            textTransform: "uppercase"
-          }}
           maxLength={6}
+          style={{ textTransform: 'uppercase' }}
         />
-        <button 
-          onClick={onJoinRoom}
-          style={{ 
-            width: "100%", 
-            padding: "8px", 
-            borderRadius: "4px", 
-            border: "none", 
-            background: "#007bff",
-            color: "white",
-            cursor: "pointer"
-          }}
-        >
-          Join Room
-        </button>
+        <button className="btn-secondary" onClick={onJoinRoom}>Join Room</button>
       </div>
 
-        {/* User's Rooms */}
-        <div style={{ flex: 1, padding: "16px", overflowY: "auto" }}>
-        <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", color: "#666" }}>Your Rooms:</h4>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {rooms.map((room) => (
+      <div className="sidebar-section" style={{ flex: 1, overflow: 'hidden' }}>
+        <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#64748b' }}>Your Rooms</h4>
+        <div className="rooms-list" style={{ height: '100%' }}>
+          {rooms.map((room, idx) => (
             <button
-                key={room.id}
-                onClick={() => onSelectRoom(room)}
-                onDoubleClick={() => {
+              key={room.id}
+              className={`room-item ${currentRoom?.id === room.id ? 'selected' : ''}`}
+              onMouseMove={(e) => {
+                const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                (e.currentTarget as HTMLButtonElement).style.setProperty('--rx', `${e.clientX - rect.left}px`);
+                (e.currentTarget as HTMLButtonElement).style.setProperty('--ry', `${e.clientY - rect.top}px`);
+              }}
+              style={{
+                // @ts-ignore custom css var for stagger
+                '--i': idx,
+              } as React.CSSProperties}
+              onClick={() => onSelectRoom(room)}
+              onDoubleClick={() => {
                 navigator.clipboard.writeText(room.code);
                 alert(`Room code "${room.code}" copied!`);
-                }}
-                style={{
-                padding: "8px 12px",
-                border: currentRoom?.id === room.id ? "2px solid #007bff" : "1px solid #ddd",
-                borderRadius: "4px",
-                background: currentRoom?.id === room.id ? "#e3f2fd" : "white",
-                cursor: "pointer",
-                textAlign: "left",
-                fontSize: "13px",
-                userSelect: "none"
-                }}
+              }}
             >
-                <div style={{ fontWeight: "bold", color: "black", fontSize: "17px" }}>{room.name}</div>
-                <div style={{ fontSize: "10px", color: "#666" }}>{room.code}</div>
+              <div className="room-row">
+                <span className="room-code">{room.code}</span>
+                <span className="room-name">{room.name}</span>
+              </div>
+              <span className="badge" data-unread="false">0</span>
             </button>
-            ))}
-            {rooms.length === 0 && (
-            <span style={{ opacity: 0.7, fontSize: "12px", textAlign: "center" }}>
-                No rooms yet. Create one or join one!
+          ))}
+          {rooms.length === 0 && (
+            <span style={{ opacity: 0.7, fontSize: '12px', textAlign: 'center' }}>
+              No rooms yet. Create one or join one!
             </span>
-            )}
+          )}
         </div>
-        </div>
+      </div>
 
-
-      {/* Connection Status & Logout */}
-      <div style={{ 
-        padding: "16px", 
-        borderTop: "1px solid #ddd",
-        background: "#f8f9fa"
-      }}>
-        <div style={{ marginBottom: "12px" }}>
-          <span style={{ fontSize: "12px", color: "#666" }}>
-            Status: {connected ? "🟢 connected" : "🔴 disconnected"}
+      <div className="sidebar-section" style={{ borderTop: '1px solid #eef1f4', background: '#fbfdff' }}>
+        <div style={{ marginBottom: 12 }}>
+          <span style={{ fontSize: 12, color: '#64748b' }}>
+            Status: {connected ? '🟢 connected' : '🔴 disconnected'}
           </span>
         </div>
-
-        <button 
-          onClick={onLogout}
-          style={{ 
-            width: "100%", 
-            padding: "8px", 
-            borderRadius: "4px", 
-            border: "none", 
-            background: "#6c757d",
-            color: "white",
-            cursor: "pointer"
-          }}
-        >
-          Logout
-        </button>
+        <button className="btn-primary" style={{ background: 'linear-gradient(180deg, #6b7280 0%, #4b5563 100%)' }} onClick={onLogout}>Logout</button>
       </div>
     </div>
   );
