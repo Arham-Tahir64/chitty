@@ -82,7 +82,11 @@ export default function ChatArea({
                 <div>
                   <span style={{ fontWeight: "bold", color: "#007bff" }}>{m.user ?? "?"}</span>
                   <span style={{ margin: "0 8px", color: "#666" }}>•</span>
-                  <span style={{ color: "#666", fontSize: 12 }}>{m.room}</span>
+                  <span style={{ color: "#666", fontSize: 12 }}>
+                    {(m.time || m.createdAt || m.created_at)
+                      ? new Date(m.time || m.createdAt || m.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })
+                      : ''}
+                  </span>
                   <div style={{ marginTop: 4, color: "black" }}>{m.content}</div>
                 </div>
               ) : (
