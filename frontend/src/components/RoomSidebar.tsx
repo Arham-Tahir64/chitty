@@ -43,6 +43,7 @@ export default function RoomSidebar({
       <div style={{ 
         padding: "20px", 
         borderBottom: "1px solid #ddd",
+        color: "black",
         background: "#f8f9fa"
       }}>
         <h2 style={{ margin: 0, fontSize: "18px" }}>Rooms</h2>

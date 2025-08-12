@@ -31,6 +31,12 @@ const wss = new WebSocket.Server({ server });
 // Sign up
 app.post('/signup', async (req, res) => {
     const { username, password } = req.body;
+
+    // Simple NOT NULL + empty string check
+    if (!username || !password || username.trim() === '' || password.trim() === '') {
+        return res.status(400).json({ error: 'Username and password are required' });
+    }
+
     const hashed = await bcrypt.hash(password, 10);
 
     try {
@@ -47,6 +53,12 @@ app.post('/signup', async (req, res) => {
 // Login
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
+
+    // Simple NOT NULL + empty string check
+    if (!username || !password || username.trim() === '' || password.trim() === '') {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
     const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     const user = result.rows[0];
 

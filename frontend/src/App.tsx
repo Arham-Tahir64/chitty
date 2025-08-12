@@ -67,6 +67,11 @@ export default function App() {
 
   // Handle login
   const handleLogin = async () => {
+    if (login === undefined) {
+      alert("Login function not available");
+      return;
+    }
+    
     try {
       await login();
     } catch (error) {
@@ -76,6 +81,11 @@ export default function App() {
 
   // Handle signup
   const handleSignup = async () => {
+    if (signup === undefined) {
+      alert("Signup function not available");
+      return;
+    }
+    
     try {
       await signup();
       alert("Signed up successfully! Now click Login.");
