@@ -404,7 +404,7 @@ wss.on('connection', (ws, req) => {
             } else {
               counts.delete(ws.user.id);
             }
-            if (counts.size === 0) {
+            if (counts && counts.size === 0) {
               roomUserIdCounts.delete(room);
             }
           }

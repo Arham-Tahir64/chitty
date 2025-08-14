@@ -10,6 +10,7 @@ export function useChat(token: string) {
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const pendingJoinCodeRef = useRef<string | null>(null);
 
   // Load user's rooms when logged in
   const loadUserRooms = useCallback(async () => {
@@ -39,6 +40,19 @@ export function useChat(token: string) {
       console.error("Failed to fetch members:", error);
     }
   }, [currentRoom]);
+
+  // Targeted fetches
+  const fetchMembersFor = useCallback(async (code: string) => {
+    try {
+      const res = await fetch(`${API}/rooms/${code}/members`);
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch members:", error);
+    }
+  }, []);
 
   // Load user's rooms
   useEffect(() => {
@@ -118,32 +132,83 @@ export function useChat(token: string) {
   };
 
   // Join room in WebSocket
-  const joinRoom = (code: string) => {
-    if (!wsRef.current || wsRef.current.readyState !== 1) return;
-    
-    // Find room info
+  const ensureConnected = (): Promise<void> => {
+    return new Promise((resolve) => {
+      const ws = wsRef.current;
+      if (ws && ws.readyState === 1) {
+        setConnected(true);
+        resolve();
+        return;
+      }
+      if (ws && ws.readyState === 0) {
+        const handler = () => {
+          ws.removeEventListener('open', handler as any);
+          setConnected(true);
+          resolve();
+        };
+        ws.addEventListener('open', handler as any);
+        return;
+      }
+      // No socket or closed: create a new connection
+      connect().then(resolve);
+    });
+  };
+
+  const joinRoom = async (code: string) => {
+    // Update selected room if we have it in list
     const room = rooms.find(r => r.code === code);
     if (room) {
       setCurrentRoom(room);
     }
-    
-    wsRef.current.send(JSON.stringify({ type: "join", code }));
-    setMessages([]); // Clear messages when joining new room
+
+    // Ensure socket is connected before sending join
+    pendingJoinCodeRef.current = code;
+    await ensureConnected();
+    const socket = wsRef.current;
+    if (socket && socket.readyState === 1) {
+      socket.send(JSON.stringify({ type: "join", code }));
+      pendingJoinCodeRef.current = null;
+      setMessages([]);
+      // Immediately fetch for the intended room to avoid stale state
+      await fetchHistoryFor(code);
+      await fetchMembersFor(code);
+    }
   };
 
   // Connect WebSocket
-  const connect = () => {
-    if (!token) return;
-    const ws = new WebSocket(`ws://localhost:3001?token=${token}`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setConnected(true);
-      // Join the current room if we have one
-      if (currentRoom) {
-        joinRoom(currentRoom.code);
+  const connect = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!token) { resolve(); return; }
+      // Reuse existing socket if connecting/open
+      if (wsRef.current) {
+        const ws = wsRef.current;
+        if (ws.readyState === 1) { setConnected(true); resolve(); return; }
+        if (ws.readyState === 0) {
+          const handler = () => {
+            ws.removeEventListener('open', handler as any);
+            setConnected(true);
+            resolve();
+            const target = pendingJoinCodeRef.current || currentRoom?.code;
+            if (target) { ws.send(JSON.stringify({ type: 'join', code: target })); pendingJoinCodeRef.current = null; setMessages([]); }
+          };
+          ws.addEventListener('open', handler as any);
+          return;
+        }
       }
-    };
+      const ws = new WebSocket(`ws://localhost:3001?token=${token}`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setConnected(true);
+        // Prefer any queued join otherwise fall back to the current room
+        const target = pendingJoinCodeRef.current || currentRoom?.code;
+        if (target) {
+          ws.send(JSON.stringify({ type: 'join', code: target }));
+          pendingJoinCodeRef.current = null;
+          setMessages([]);
+        }
+        resolve();
+      };
 
     ws.onmessage = async (e: MessageEvent) => {
       try {
@@ -151,7 +216,8 @@ export function useChat(token: string) {
         if (msg.type === "joined") {
           // Room joined successfully
           console.log("Joined room:", msg.code);
-          await fetchMembers(); // Refresh members list
+          await fetchHistoryFor(msg.code);
+          await fetchMembersFor(msg.code);
         } else if (msg.type === "error") {
           console.error("WebSocket error:", msg.message || msg.code);
         } else {
@@ -166,7 +232,11 @@ export function useChat(token: string) {
       }
     };
 
-    ws.onclose = () => setConnected(false);
+      ws.onclose = () => {
+        setConnected(false);
+        wsRef.current = null;
+      };
+    });
   };
 
   const disconnect = () => {
@@ -181,14 +251,16 @@ export function useChat(token: string) {
 
   const fetchHistory = async () => {
     if (!currentRoom) return;
-    
+    await fetchHistoryFor(currentRoom.code);
+  };
+
+  const fetchHistoryFor = async (code: string) => {
     try {
-      const res = await fetch(`${API}/rooms/${currentRoom.code}/messages?limit=20`);
+      const res = await fetch(`${API}/rooms/${code}/messages?limit=20`);
       if (res.ok) {
         const data = await res.json();
-        // normalize to same format we append in onmessage
         const normalized = data.map((r: { room: string; sender: string; content: string; created_at: string }) => ({
-          type: "chat",
+          type: 'chat',
           room: r.room,
           user: r.sender,
           content: r.content,
@@ -197,22 +269,20 @@ export function useChat(token: string) {
         setMessages(normalized);
       }
     } catch (error) {
-      console.error("Failed to fetch history:", error);
+      console.error('Failed to fetch history:', error);
     }
   };
 
   const selectRoom = async (room: Room) => {
     setCurrentRoom(room);
-    
-    // Auto-connect if not connected
     if (!connected) {
+      // queue the intended join and connect
+      pendingJoinCodeRef.current = room.code;
       await connect();
+    } else {
+      joinRoom(room.code);
     }
-    
-    // Join the room and load history
-    joinRoom(room.code);
-    await fetchHistory();
-    await fetchMembers();
+    // History and members will load after we get the 'joined' event
   };
 
   const clearData = () => {
