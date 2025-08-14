@@ -207,8 +207,24 @@
 
 .member-status {
   font-size: 12px;
-  color: #10b981;
   font-weight: 500;
+}
+
+.member-status.online {
+  color: #10b981;
+}
+
+.member-status.offline {
+  color: #6b7280;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background-color: currentColor;
 }
 
 .members-empty {

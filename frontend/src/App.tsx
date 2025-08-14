@@ -142,8 +142,8 @@ export default function App() {
       />
 
       {/* Right Side - Chat Area */}
-      <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      <ChatArea
+      <div style={{ display: 'flex', height: '100vh', flex: 1, overflow: 'hidden' }}>
+        <ChatArea
           currentRoom={currentRoom}
           messages={messages}
           text={text}

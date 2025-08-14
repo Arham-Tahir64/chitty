@@ -26,4 +26,5 @@ export interface ChatMessage {
 export interface Member {
   id: string;
   name: string;
+  online: boolean;
 }

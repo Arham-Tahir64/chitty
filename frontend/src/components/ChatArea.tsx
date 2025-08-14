@@ -51,7 +51,7 @@ export default function ChatArea({
           <div>
             <h2 className="chat-title">{currentRoom.name}</h2>
             <span className="chat-code">
-              Room {currentRoom.code} • {members.length} online
+              Room {currentRoom.code} • {members.filter(m => m.online).length} online • {members.length} total
             </span>
           </div>
         </div>
@@ -108,14 +108,17 @@ export default function ChatArea({
 
       {/* Current Members */}
       <aside className="members-panel">
-        <div className="members-header">Members ({members.length})</div>
+        <div className="members-header">Members ({members.filter(m => m.online).length} online, {members.length} total)</div>
         <div className="members-list">
           {members.length ? members.map(m => (
             <div key={m.id} className="member-row">
               <div className="avatar">{(m.name ?? m.id).slice(0,1).toUpperCase()}</div>
               <div className="member-meta">
                 <div className="member-name">{m.name ?? m.id}</div>
-                <div className="member-status">online</div>
+                <div className={`member-status ${m.online ? 'online' : 'offline'}`}>
+                  <span className="status-dot"></span>
+                  {m.online ? 'online' : 'offline'}
+                </div>
               </div>
             </div>
           )) : (

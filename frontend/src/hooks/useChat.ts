@@ -53,7 +53,7 @@ export function useChat(token: string) {
     
     const interval = setInterval(() => {
       fetchMembers();
-    }, 30000); // Refresh every 30 seconds
+    }, 10000); // Refresh every 10 seconds for real-time status updates
     
     return () => clearInterval(interval);
   }, [currentRoom, fetchMembers]);

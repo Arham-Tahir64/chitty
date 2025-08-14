@@ -231,7 +231,14 @@ app.get('/rooms/:room/members', async (req, res) => {
        ORDER BY u.username`,
       [room]
     );
-    res.json(result.rows);
+    
+    // Add online status based on current WebSocket connections
+    const membersWithStatus = result.rows.map(user => ({
+      ...user,
+      online: connectedUsers.has(user.id)
+    }));
+    
+    res.json(membersWithStatus);
   } catch (e) {
     console.error('Failed to fetch room members:', e);
     res.status(500).json({ error: 'Server error' });
@@ -241,6 +248,7 @@ app.get('/rooms/:room/members', async (req, res) => {
 // Room handling
 const rooms = new Map();
 const roomUsers = new Map();
+const connectedUsers = new Set(); // Track all connected users
 
 // Room handling functions
 // Join room
@@ -253,6 +261,9 @@ function joinRoom(ws, room) {
     rooms.set(ws, room);
     if (!roomUsers.get(room)) roomUsers.set(room, new Set());
     roomUsers.get(room).add(ws);
+    
+    // Add to connected users set
+    connectedUsers.add(ws.user.id);
 }
 
 // Send message to room
@@ -342,6 +353,21 @@ wss.on('connection', (ws, req) => {
             }
           } catch {}
         })();
+      }
+    });
+
+    // Handle disconnect
+    ws.on('close', () => {
+      // Remove user from online status when they disconnect
+      if (ws.user && ws.user.id) {
+        connectedUsers.delete(ws.user.id);
+        
+        // Also remove from room tracking
+        const room = rooms.get(ws);
+        if (room && roomUsers.get(room)) {
+          roomUsers.get(room).delete(ws);
+        }
+        rooms.delete(ws);
       }
     });
   });
