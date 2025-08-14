@@ -38,6 +38,7 @@ export default function RoomSidebar({
         <input
           className="text-input"
           placeholder="Room name (optional)"
+          style={{ color: 'black' }}
           value={newRoomName}
           onChange={e => setNewRoomName(e.target.value)}
         />
@@ -51,7 +52,7 @@ export default function RoomSidebar({
           value={roomCode}
           onChange={e => setRoomCode(e.target.value.toUpperCase())}
           maxLength={6}
-          style={{ textTransform: 'uppercase' }}
+          style={{ textTransform: 'uppercase', color: 'black' }}
         />
         <button className="btn-secondary" onClick={onJoinRoom}>Join Room</button>
       </div>
