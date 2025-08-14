@@ -231,13 +231,14 @@ app.get('/rooms/:room/members', async (req, res) => {
        ORDER BY u.username`,
       [room]
     );
-    
-    // Add online status based on current WebSocket connections
+
+    // Add room-scoped online status using per-room connection counts
+    const counts = roomUserIdCounts.get(room);
     const membersWithStatus = result.rows.map(user => ({
       ...user,
-      online: connectedUsers.has(user.id)
+      online: Boolean(counts && (counts.get(user.id) || 0) > 0)
     }));
-    
+
     res.json(membersWithStatus);
   } catch (e) {
     console.error('Failed to fetch room members:', e);
@@ -248,22 +249,41 @@ app.get('/rooms/:room/members', async (req, res) => {
 // Room handling
 const rooms = new Map();
 const roomUsers = new Map();
-const connectedUsers = new Set(); // Track all connected users
+// Track total open connections per user (multi-session safe)
+const userIdConnectionCount = new Map();
+// Track per-room connection counts per user: roomCode -> (userId -> count)
+const roomUserIdCounts = new Map();
 
 // Room handling functions
 // Join room
 function joinRoom(ws, room) {
     // Remove from previous room first
     const prev = rooms.get(ws);
-    if (prev && roomUsers.get(prev)) roomUsers.get(prev).delete(ws);
+    if (prev && roomUsers.get(prev)) {
+        roomUsers.get(prev).delete(ws);
+        // decrement per-room presence count for previous room
+        const prevCounts = roomUserIdCounts.get(prev);
+        if (prevCounts) {
+            const current = (prevCounts.get(ws.user.id) || 0) - 1;
+            if (current > 0) {
+                prevCounts.set(ws.user.id, current);
+            } else {
+                prevCounts.delete(ws.user.id);
+            }
+            if (prevCounts.size === 0) {
+                roomUserIdCounts.delete(prev);
+            }
+        }
+    }
 
     // Add to new room
     rooms.set(ws, room);
     if (!roomUsers.get(room)) roomUsers.set(room, new Set());
     roomUsers.get(room).add(ws);
-    
-    // Add to connected users set
-    connectedUsers.add(ws.user.id);
+    // increment per-room presence count for new room
+    if (!roomUserIdCounts.get(room)) roomUserIdCounts.set(room, new Map());
+    const roomCounts = roomUserIdCounts.get(room);
+    roomCounts.set(ws.user.id, (roomCounts.get(ws.user.id) || 0) + 1);
 }
 
 // Send message to room
@@ -294,6 +314,9 @@ wss.on('connection', (ws, req) => {
         ws.close(1008, 'Invalid/expired token');
         return;
     }
+
+    // Track global connections per user
+    userIdConnectionCount.set(ws.user.id, (userIdConnectionCount.get(ws.user.id) || 0) + 1);
 
     // Join room, default to general
     joinRoom(ws, 'general');
@@ -358,14 +381,33 @@ wss.on('connection', (ws, req) => {
 
     // Handle disconnect
     ws.on('close', () => {
-      // Remove user from online status when they disconnect
       if (ws.user && ws.user.id) {
-        connectedUsers.delete(ws.user.id);
-        
-        // Also remove from room tracking
+        // decrement global connection count
+        const current = (userIdConnectionCount.get(ws.user.id) || 1) - 1;
+        if (current > 0) {
+          userIdConnectionCount.set(ws.user.id, current);
+        } else {
+          userIdConnectionCount.delete(ws.user.id);
+        }
+
+        // Also remove from room tracking and decrement per-room counts
         const room = rooms.get(ws);
-        if (room && roomUsers.get(room)) {
-          roomUsers.get(room).delete(ws);
+        if (room) {
+          const sockets = roomUsers.get(room);
+          if (sockets) sockets.delete(ws);
+
+          const counts = roomUserIdCounts.get(room);
+          if (counts) {
+            const roomCurrent = (counts.get(ws.user.id) || 1) - 1;
+            if (roomCurrent > 0) {
+              counts.set(ws.user.id, roomCurrent);
+            } else {
+              counts.delete(ws.user.id);
+            }
+            if (counts.size === 0) {
+              roomUserIdCounts.delete(room);
+            }
+          }
         }
         rooms.delete(ws);
       }
