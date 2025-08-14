@@ -5,12 +5,14 @@ interface AuthScreenProps {
   password: string;
   setUsername: (username: string) => void;
   setPassword: (password: string) => void;
+  rememberMe: boolean;
+  setRememberMe: (remember: boolean) => void;
   onLogin: () => void;
   onSignup: () => void;
 }
 
 export default function AuthScreen({
-  username, password, setUsername, setPassword, onLogin, onSignup
+  username, password, setUsername, setPassword, rememberMe, setRememberMe, onLogin, onSignup
 }: AuthScreenProps) {
   return (
     <div className="auth-root">
@@ -46,7 +48,7 @@ export default function AuthScreen({
           </div>
 
           <div className="row">
-            <label><input type="checkbox" /> Remember me</label>
+            <label><input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} /> Remember me</label>
             <a href="#" onClick={(e) => e.preventDefault()}>Forgot Password?</a>
           </div>
 

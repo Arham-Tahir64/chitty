@@ -5,8 +5,12 @@ const API = "http://localhost:3001";
 export function useAuth() {
   const [username, setUsername] = useState("test");
   const [password, setPassword] = useState("pass123");
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [showAuth, setShowAuth] = useState(!localStorage.getItem("token"));
+  // sessionStorage is tab-scoped, localStorage is not
+  const initialToken = (typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token') || '') : '');
+  const [token, setToken] = useState(initialToken);
+  const [showAuth, setShowAuth] = useState(!initialToken);
+  const initialRemember = (typeof window !== 'undefined') ? !!(localStorage.getItem('token') && !sessionStorage.getItem('token')) : false;
+  const [rememberMe, setRememberMe] = useState<boolean>(initialRemember);
 
   useEffect(() => {
     if (token) {
@@ -25,7 +29,18 @@ export function useAuth() {
       if (!data.token) {
         throw new Error("Login failed");
       }
-      localStorage.setItem("token", data.token);
+      // Store token in sessionStorage by default, or localStorage if rememberMe is checked
+      try {
+        sessionStorage.setItem('token', data.token);
+      } catch {}
+      try {
+        // If rememberMe, store in localStorage otherwise ensure it's cleared
+        if (rememberMe) {
+          localStorage.setItem('token', data.token);
+        } else {
+          localStorage.removeItem('token');
+        }
+      } catch {}
       setToken(data.token);
       return data.token;
     } catch (error) {
@@ -54,9 +69,11 @@ export function useAuth() {
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
+    try { localStorage.removeItem('token'); } catch {}
+    try { sessionStorage.removeItem('token'); } catch {}
     setToken("");
     setShowAuth(true);
+    setRememberMe(false);
   };
 
   return {
@@ -64,8 +81,10 @@ export function useAuth() {
     password,
     token,
     showAuth,
+    rememberMe,
     setUsername,
     setPassword,
+    setRememberMe,
     login,
     signup,
     logout

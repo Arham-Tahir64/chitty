@@ -11,8 +11,10 @@ export default function App() {
     password, 
     token, 
     showAuth, 
+    rememberMe,
     setUsername, 
     setPassword, 
+    setRememberMe,
     login, 
     signup, 
     logout 
@@ -25,7 +27,6 @@ export default function App() {
     currentRoom,
     members,
     sendChat,
-    fetchHistory,
     createRoom,
     joinRoomByCode,
     selectRoom,
@@ -107,6 +108,8 @@ export default function App() {
         password={password}
         setUsername={setUsername}
         setPassword={setPassword}
+        rememberMe={rememberMe}
+        setRememberMe={setRememberMe}
         onLogin={handleLogin}
         onSignup={handleSignup}
       />
@@ -150,7 +153,6 @@ export default function App() {
           connected={connected}
           setText={setText}
           onSendChat={handleSendChat}
-          onFetchHistory={fetchHistory}
           members={members}
         />
       </div>

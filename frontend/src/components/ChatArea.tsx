@@ -8,7 +8,6 @@ interface ChatAreaProps {
   connected: boolean;
   setText: (text: string) => void;
   onSendChat: () => void;
-  onFetchHistory: () => void;
   members?: Member[];
 }
 
@@ -112,7 +111,7 @@ export default function ChatArea({
         <div className="members-list">
           {members.length ? members.map(m => (
             <div key={m.id} className="member-row">
-              <div className="avatar">{(m.name ?? m.id).slice(0,1).toUpperCase()}</div>
+              <div className="avatar">{String(m.name ?? m.id).slice(0,1).toUpperCase()}</div>
               <div className="member-meta">
                 <div className="member-name">{m.name ?? m.id}</div>
                 <div className={`member-status ${m.online ? 'online' : 'offline'}`}>

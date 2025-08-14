@@ -67,10 +67,22 @@ export function useChat(token: string) {
     
     const interval = setInterval(() => {
       fetchMembers();
-    }, 10000); // Refresh every 10 seconds for real-time status updates
+    }, 5000); // Refresh every 5 seconds for snappier presence updates
     
     return () => clearInterval(interval);
   }, [currentRoom, fetchMembers]);
+
+  // Refresh presence when window/tab gains focus or becomes visible
+  useEffect(() => {
+    const onFocus = () => { fetchMembers(); };
+    const onVisibility = () => { if (document.visibilityState === 'visible') fetchMembers(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [fetchMembers]);
 
   // Create new room
   const createRoom = async (name: string) => {
