@@ -2,6 +2,22 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Configuration
+
+### API Configuration
+
+The application uses environment variables to configure the API endpoint. Create a `.env` file in the frontend directory with:
+
+```bash
+VITE_API_URL=http://localhost:3001
+```
+
+- **Development**: Set to `http://localhost:3001` (or your local backend port)
+- **Production**: Set to your deployed backend URL
+- **Fallback**: If not set, the app will use `window.location.origin` as a fallback
+
+The WebSocket connection will automatically use the appropriate protocol (ws:// for HTTP, wss:// for HTTPS).
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh

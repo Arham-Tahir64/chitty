@@ -21,6 +21,12 @@ const pool = new Pool({
     port: process.env.PGPORT,
   });
 
+// Check if JWT_SECRET is set
+if (!process.env.JWT_SECRET) {
+  console.error("JWT_SECRET is required");
+  process.exit(1);
+}
+
 // Initialize server
 const app = express();
 app.use(cors());

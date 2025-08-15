@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import type { Room, Member, Message } from '../types';
+import { API_BASE_URL, WS_BASE_URL } from '../config';
 
-const API = "http://localhost:3001";
+const API = API_BASE_URL;
 
 export function useChat(token: string) {
   const [connected, setConnected] = useState(false);
@@ -207,7 +208,7 @@ export function useChat(token: string) {
           return;
         }
       }
-      const ws = new WebSocket(`ws://localhost:3001?token=${token}`);
+      const ws = new WebSocket(`${WS_BASE_URL}?token=${token}`);
       wsRef.current = ws;
 
       ws.onopen = () => {

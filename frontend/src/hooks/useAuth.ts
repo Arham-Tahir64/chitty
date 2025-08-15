@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 
-const API = "http://localhost:3001";
+const API = API_BASE_URL;
 
 export function useAuth() {
-  const [username, setUsername] = useState("test");
-  const [password, setPassword] = useState("pass123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   // sessionStorage is tab-scoped, localStorage is not
   const initialToken = (typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token') || '') : '');
   const [token, setToken] = useState(initialToken);
