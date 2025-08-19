@@ -1,0 +1,89 @@
+config:
+  target: "http://localhost:3001"
+  phases:
+    - duration: 60
+      arrivalRate: 10
+  defaults:
+    headers:
+      content-type: application/json
+
+scenarios:
+  - name: "Signup and login flow"
+    weight: 70
+    flow:
+      - post:
+          url: "/signup"
+          json:
+            username: "loadtest_{{ $uuid }}"
+            password: "testpass123"
+          capture:
+            - json: "$.message"
+              as: "signup_result"
+      
+      - post:
+          url: "/login"
+          json:
+            username: "loadtest_{{ $uuid }}"
+            password: "testpass123"
+          capture:
+            - json: "$.token"
+              as: "jwt"
+          check:
+            - status: 200
+            - json: "$.token"
+              isDefined: true
+      
+      - get:
+          url: "/me/rooms"
+          headers:
+            authorization: "Bearer {{ jwt }}"
+          check:
+            - status: 200
+      
+      - post:
+          url: "/rooms"
+          headers:
+            authorization: "Bearer {{ jwt }}"
+          json:
+            name: "load-test-{{ $uuid }}"
+          capture:
+            - json: "$.code"
+              as: "room_code"
+          check:
+            - status: 200
+            - json: "$.code"
+              isDefined: true
+
+  - name: "Join existing room"
+    weight: 20
+    flow:
+      - post:
+          url: "/login"
+          json:
+            username: "arham1"
+            password: "123"
+          capture:
+            - json: "$.token"
+              as: "jwt"
+          check:
+            - status: 200
+      
+      - post:
+          url: "/rooms/join"
+          headers:
+            authorization: "Bearer {{ jwt }}"
+          json:
+            code: "EWD5AM"
+          check:
+            - status: 200
+
+  - name: "Simple login"
+    weight: 10
+    flow:
+      - post:
+          url: "/login"
+          json:
+            username: "arham1"
+            password: "123"
+          check:
+            - status: 200

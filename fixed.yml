@@ -1,0 +1,93 @@
+config:
+  target: "http://localhost:3001"
+  # Keep-alive & client socket tuning to avoid EADDRINUSE/ETIMEDOUT on the generator
+  http:
+    connectionStrategy: reuse
+    pool: 200            # max open sockets per virtual user pool
+    maxSockets: 400      # hard cap for concurrent sockets
+    timeout: 30
+    discardResponseBodies: true
+
+  # Stop conditions so you can spot the knee cleanly
+  thresholds:
+    - http.response_time.p95 < 2000     # fail step if p95 > 2s
+    - http.request_rate > 0              # ensures we’re emitting load
+    - http.errors == 0                   # expect 0 HTTP-level errors when under capacity
+
+  # Step ramp near the suspected failure range
+  phases:
+    # brief warm-up so caches/db pools settle
+    - duration: 60
+      arrivalRate: 40
+
+    # coarse steps
+    - duration: 90
+      arrivalRate: 70
+    - duration: 90
+      arrivalRate: 80
+
+    # Tighten bounds to find bottlenecks
+    - duration: 90
+      arrivalRate: 85
+    - duration: 90
+      arrivalRate: 90
+    - duration: 90
+      arrivalRate: 95
+    - duration: 90
+      arrivalRate: 100
+
+  defaults:
+    headers:
+      content-type: application/json
+
+scenarios:
+  # Focused on the bottleneck: login
+  - name: "Login only (seeded user)"
+    weight: 80
+    flow:
+      - post:
+          url: "/login"
+          json:
+            username: "arham1"
+            password: "123"
+          capture:
+            - json: "$.token"
+              as: "jwt"
+          check:
+            - status: 200
+            - json: "$.token"
+              isDefined: true
+
+      # Tiny authenticated read to exercise token path w/o heavy DB writes
+      - get:
+          url: "/me/rooms"
+          headers:
+            authorization: "Bearer {{ jwt }}"
+          check:
+            - status: 200
+
+  # Light companion flow to ensure non-auth endpoints stay healthy
+  - name: "Join existing room (seeded)"
+    weight: 20
+    flow:
+      - post:
+          url: "/login"
+          json:
+            username: "arham1"
+            password: "123"
+          capture:
+            - json: "$.token"
+              as: "jwt"
+          check:
+            - status: 200
+            - json: "$.token"
+              isDefined: true
+
+      - post:
+          url: "/rooms/join"
+          headers:
+            authorization: "Bearer {{ jwt }}"
+          json:
+            code: "EWD5AM"   # must exist
+          check:
+            - status: 200
